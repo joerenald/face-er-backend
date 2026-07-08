@@ -134,7 +134,7 @@ def detect():
           )
          cv2.imwrite(result_image, image)
 
-         result["image"] = "http://127.0.0.1:5000/uploads/result.jpg"
+        result["image"] = request.host_url.rstrip("/") + "/uploads/result.jpg"
 
         print("Result :", result)
 

@@ -5,7 +5,17 @@ from flask import send_from_directory
 import os
 app = Flask(__name__)
 
-CORS(app)
+CORS(
+    app,
+    resources={
+        r"/*": {
+            "origins": [
+                "http://localhost:5173",
+                "https://face-er-frontend.vercel.app"
+            ]
+        }
+    }
+)
 
 app.register_blueprint(detect_bp)
 

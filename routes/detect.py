@@ -134,6 +134,8 @@ def detect():
           )
          cv2.imwrite(result_image, image)
 
+        from flask import request
+
         result["image"] = request.host_url.rstrip("/") + "/uploads/result.jpg"
 
         print("Result :", result)

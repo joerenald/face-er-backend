@@ -1,6 +1,25 @@
 from deepface import DeepFace
 import traceback
 
+print("====================================")
+print("Loading DeepFace Emotion Model...")
+print("====================================")
+
+# Warm up the model once when the server starts
+try:
+    DeepFace.analyze(
+        img_path="tests/warmup.jpg",   # Any small face image
+        actions=["emotion"],
+        enforce_detection=False,
+        detector_backend="opencv",
+        silent=True
+    )
+except:
+    # Ignore if warmup image doesn't exist
+    pass
+
+print("DeepFace Model Loaded Successfully")
+
 
 def detect_emotion(image_path):
 
@@ -13,34 +32,24 @@ def detect_emotion(image_path):
             img_path=image_path,
             actions=["emotion"],
             enforce_detection=False,
-            detector_backend="opencv"
+            detector_backend="opencv",
+            silent=True
         )
 
-        print("DeepFace analysis completed.")
-
-        # DeepFace may return a list
         if isinstance(result, list):
             result = result[0]
 
-        # Extract emotion
-        emotion = str(result["dominant_emotion"])
+        emotion = result["dominant_emotion"].capitalize()
+        confidence = float(result["emotion"][result["dominant_emotion"]])
 
-        # Convert NumPy float32 to Python float
-        confidence = float(result["emotion"][emotion])
-
-        response = {
+        return {
             "success": True,
-            "emotion": emotion.capitalize(),
+            "emotion": emotion,
             "confidence": round(confidence, 2)
         }
 
-        print("Response:", response)
-
-        return response
-
     except Exception as e:
 
-        print("\n========== DEEPFACE ERROR ==========")
         traceback.print_exc()
 
         return {

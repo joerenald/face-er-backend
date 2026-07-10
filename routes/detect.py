@@ -3,6 +3,8 @@ from werkzeug.utils import secure_filename
 from services.face_detector import detect_face
 from services.emotion_detector import detect_emotion
 import os
+import base64
+import cv2
 import traceback
 
 detect_bp = Blueprint("detect", __name__)
@@ -62,11 +64,6 @@ def detect():
         filepath = os.path.join(
         UPLOAD_FOLDER,
         filename
-        )
-
-        filepath = os.path.join(
-            UPLOAD_FOLDER,
-            filename
         )
 
         image.save(filepath)
@@ -141,9 +138,13 @@ def detect():
           )
          cv2.imwrite(result_image, image)
 
-        from flask import request
+# Convert processed image to Base64
+         _, buffer = cv2.imencode(".jpg", image)
 
-        result["image"] = request.host_url.rstrip("/") + "/uploads/result.jpg"
+         result["image"] = (
+         "data:image/jpeg;base64,"
+         + base64.b64encode(buffer).decode("utf-8")
+        )
 
         print("Result :", result)
 

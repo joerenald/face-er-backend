@@ -55,7 +55,14 @@ def detect():
         # -----------------------------
         os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-        filename = secure_filename(image.filename)
+        import uuid
+
+        filename = f"{uuid.uuid4().hex}.jpg"
+
+        filepath = os.path.join(
+        UPLOAD_FOLDER,
+        filename
+        )
 
         filepath = os.path.join(
             UPLOAD_FOLDER,
@@ -77,9 +84,9 @@ def detect():
             print("No human face detected.")
 
             return jsonify({
-                "success": False,
-                "message": "No human face detected."
-            })
+             "success": False,
+             "message": "No human face detected."
+            }), 400
 
         cropped_face = face_data["face_path"]
         result_image = face_data["result_path"]

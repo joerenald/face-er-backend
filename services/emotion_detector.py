@@ -1,24 +1,19 @@
 from deepface import DeepFace
+from deepface.modules import modeling
 import traceback
 
-print("====================================")
+print("=" * 60)
 print("Loading DeepFace Emotion Model...")
-print("====================================")
+print("=" * 60)
 
-# Warm up the model once when the server starts
+# Load the emotion model once when the server starts
 try:
-    DeepFace.analyze(
-        img_path="tests/warmup.jpg",   # Any small face image
-        actions=["emotion"],
-        enforce_detection=False,
-        detector_backend="opencv",
-        silent=True
-    )
-except:
-    # Ignore if warmup image doesn't exist
-    pass
+    emotion_model = modeling.build_model("Emotion")
+    print("✅ Emotion model loaded successfully.")
+except Exception as e:
+    print("❌ Error loading emotion model:", e)
 
-print("DeepFace Model Loaded Successfully")
+print("=" * 60)
 
 
 def detect_emotion(image_path):
@@ -31,8 +26,8 @@ def detect_emotion(image_path):
         result = DeepFace.analyze(
             img_path=image_path,
             actions=["emotion"],
-            enforce_detection=False,
             detector_backend="opencv",
+            enforce_detection=False,
             silent=True
         )
 
@@ -40,7 +35,9 @@ def detect_emotion(image_path):
             result = result[0]
 
         emotion = result["dominant_emotion"].capitalize()
-        confidence = float(result["emotion"][result["dominant_emotion"]])
+        confidence = float(
+            result["emotion"][result["dominant_emotion"]]
+        )
 
         return {
             "success": True,

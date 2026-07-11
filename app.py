@@ -16,17 +16,16 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 # -----------------------------
+# Enable CORS
+# -----------------------------
+CORS(app)
+
+# -----------------------------
 # Upload Folder
 # -----------------------------
 UPLOAD_FOLDER = os.path.join(app.root_path, "uploads")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# -----------------------------
-# CORS Configuration
-# Replace the URL below with your
-# Vercel frontend URL after deployment
-# -----------------------------
-CORS(app)
 # -----------------------------
 # Register Blueprint
 # -----------------------------
@@ -56,6 +55,17 @@ def test():
     }, 200
 
 # -----------------------------
+# Version Check
+# -----------------------------
+@app.route("/version", methods=["GET"])
+def version():
+    return {
+        "commit": "32092e8",
+        "message": "Latest backend deployed",
+        "cors": "CORS(app)"
+    }, 200
+
+# -----------------------------
 # Serve Uploaded Images
 # -----------------------------
 @app.route("/uploads/<path:filename>")
@@ -67,11 +77,9 @@ def uploaded_file(filename):
 
 # -----------------------------
 # Local Development
-# Railway/Gunicorn ignores this
 # -----------------------------
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 7860))
-
     app.run(
         host="0.0.0.0",
         port=port,

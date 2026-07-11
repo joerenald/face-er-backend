@@ -31,8 +31,8 @@ CORS(
     resources={
         r"/*": {
             "origins": [
-                "http://localhost:5173",  # Local React
-                "https://your-vercel-app.vercel.app"  # Replace after deployment
+                "http://localhost:5173",
+                "https://face-er-frontend.vercel.app"
             ]
         }
     }

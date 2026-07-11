@@ -32,12 +32,11 @@ CORS(
         r"/*": {
             "origins": [
                 "http://localhost:5173",
-                "https://face-er-frontend.vercel.app"
+                "https://face-er-frontend-1k75.vercel.app"
             ]
         }
     }
 )
-
 # -----------------------------
 # Register Blueprint
 # -----------------------------

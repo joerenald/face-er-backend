@@ -5,24 +5,13 @@ import os
 
 app = Flask(__name__)
 
-# Create uploads folder automatically
 UPLOAD_FOLDER = os.path.join(app.root_path, "uploads")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Allow requests from your frontend
-CORS(
-    app,
-    resources={
-        r"/*": {
-            "origins": [
-                "http://localhost:5173",
-                "https://face-er-frontend.vercel.app"
-            ]
-        }
-    }
-)
+# Enable CORS
+CORS(app)
 
-# Register routes
+# Register API
 app.register_blueprint(detect_bp)
 
 # Health Check
@@ -30,12 +19,20 @@ app.register_blueprint(detect_bp)
 def home():
     return {
         "status": "running",
-        "service": "Facial Emotion Recognition API",
+        "message": "Facial Emotion Recognition API is live",
         "model": "DeepFace"
     }
 
-# Serve processed images
-@app.route("/uploads/<filename>")
+# Test Route
+@app.route("/test")
+def test():
+    return {
+        "status": "success",
+        "message": "Backend working properly"
+    }
+
+# Serve Result Images
+@app.route("/uploads/<path:filename>")
 def uploaded_file(filename):
     return send_from_directory(
         UPLOAD_FOLDER,
@@ -43,7 +40,8 @@ def uploaded_file(filename):
     )
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8000))
+
+    port = int(os.environ.get("PORT", 7860))
 
     app.run(
         host="0.0.0.0",

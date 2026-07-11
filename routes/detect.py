@@ -2,6 +2,9 @@ from flask import Blueprint, request, jsonify
 from services.face_detector import detect_face
 from services.emotion_detector import detect_emotion
 
+from cloudinary.uploader import upload
+from config.cloudinary_config import *
+
 import os
 import uuid
 import cv2
@@ -47,9 +50,9 @@ def detect():
 
     try:
 
-        # ---------------------------------------
+        # ---------------------------------------------------
         # Validate Request
-        # ---------------------------------------
+        # ---------------------------------------------------
         if "image" not in request.files:
             return jsonify({
                 "success": False,
@@ -64,9 +67,9 @@ def detect():
                 "message": "No file selected."
             }), 400
 
-        # ---------------------------------------
+        # ---------------------------------------------------
         # Save Uploaded Image
-        # ---------------------------------------
+        # ---------------------------------------------------
         filename = f"{uuid.uuid4().hex}.jpg"
 
         filepath = os.path.join(
@@ -76,9 +79,19 @@ def detect():
 
         image.save(filepath)
 
-        # ---------------------------------------
+        # ---------------------------------------------------
+        # Upload Original Image to Cloudinary
+        # ---------------------------------------------------
+        original_upload = upload(
+            filepath,
+            folder="Face-ER/original"
+        )
+
+        original_url = original_upload["secure_url"]
+
+        # ---------------------------------------------------
         # Face Detection
-        # ---------------------------------------
+        # ---------------------------------------------------
         face_data = detect_face(filepath)
 
         if face_data is None:
@@ -90,17 +103,17 @@ def detect():
         cropped_face = face_data["face_path"]
         result_image = face_data["result_path"]
 
-        # ---------------------------------------
+        # ---------------------------------------------------
         # Emotion Detection
-        # ---------------------------------------
+        # ---------------------------------------------------
         result = detect_emotion(cropped_face)
 
         if not result["success"]:
             return jsonify(result), 500
 
-        # ---------------------------------------
+        # ---------------------------------------------------
         # Read Result Image
-        # ---------------------------------------
+        # ---------------------------------------------------
         image = cv2.imread(result_image)
 
         if image is None:
@@ -147,9 +160,19 @@ def detect():
 
         cv2.imwrite(result_image, image)
 
-        # ---------------------------------------
+        # ---------------------------------------------------
+        # Upload Annotated Image to Cloudinary
+        # ---------------------------------------------------
+        result_upload = upload(
+            result_image,
+            folder="Face-ER/results"
+        )
+
+        result_url = result_upload["secure_url"]
+
+        # ---------------------------------------------------
         # Convert Image to Base64
-        # ---------------------------------------
+        # ---------------------------------------------------
         success, buffer = cv2.imencode(".jpg", image)
 
         if not success:
@@ -162,6 +185,12 @@ def detect():
             "data:image/jpeg;base64,"
             + base64.b64encode(buffer).decode("utf-8")
         )
+
+        # ---------------------------------------------------
+        # Cloudinary URLs
+        # ---------------------------------------------------
+        result["original_url"] = original_url
+        result["result_url"] = result_url
 
         return jsonify(result)
 
@@ -176,9 +205,9 @@ def detect():
 
     finally:
 
-        # ---------------------------------------
-        # Delete Temporary Files
-        # ---------------------------------------
+        # ---------------------------------------------------
+        # Delete Temporary Local Files
+        # ---------------------------------------------------
         for file in [filepath, cropped_face, result_image]:
             try:
                 if file and os.path.exists(file):

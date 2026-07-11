@@ -2,14 +2,23 @@ from flask import Blueprint, request, jsonify
 from services.face_detector import detect_face
 from services.emotion_detector import detect_emotion
 
+# Initialize Cloudinary configuration
+import config.cloudinary_config
+
 from cloudinary.uploader import upload
-from config.cloudinary_config import *
 
 import os
 import uuid
 import cv2
 import base64
 import traceback
+import logging
+
+# -------------------------------------------------------
+# Logging
+# -------------------------------------------------------
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 detect_bp = Blueprint("detect", __name__)
 
@@ -32,7 +41,7 @@ def get_emotion_color(emotion):
         "Angry": (0, 0, 255),
         "Fear": (255, 0, 255),
         "Surprise": (0, 165, 255),
-        "Disgust": (0, 128, 0)
+        "Disgust": (0, 128, 0),
     }
 
     return colors.get(emotion, (0, 255, 0))
@@ -44,6 +53,11 @@ def get_emotion_color(emotion):
 @detect_bp.route("/detect", methods=["POST"])
 def detect():
 
+    logger.info("=" * 60)
+    logger.info("DETECT API CALLED")
+    logger.info("Origin: %s", request.headers.get("Origin"))
+    logger.info("=" * 60)
+
     filepath = None
     cropped_face = None
     result_image = None
@@ -51,7 +65,7 @@ def detect():
     try:
 
         # ---------------------------------------------------
-        # Validate Request
+        # Validate Upload
         # ---------------------------------------------------
         if "image" not in request.files:
             return jsonify({
@@ -79,8 +93,10 @@ def detect():
 
         image.save(filepath)
 
+        logger.info("Original image saved.")
+
         # ---------------------------------------------------
-        # Upload Original Image to Cloudinary
+        # Upload Original to Cloudinary
         # ---------------------------------------------------
         original_upload = upload(
             filepath,
@@ -88,6 +104,8 @@ def detect():
         )
 
         original_url = original_upload["secure_url"]
+
+        logger.info("Original uploaded to Cloudinary.")
 
         # ---------------------------------------------------
         # Face Detection
@@ -112,7 +130,7 @@ def detect():
             return jsonify(result), 500
 
         # ---------------------------------------------------
-        # Read Result Image
+        # Read Annotated Image
         # ---------------------------------------------------
         image = cv2.imread(result_image)
 
@@ -124,8 +142,6 @@ def detect():
 
         x = face_data["x"]
         y = face_data["y"]
-        w = face_data["w"]
-        h = face_data["h"]
 
         label = f'{result["emotion"]} ({result["confidence"]:.1f}%)'
 
@@ -161,7 +177,7 @@ def detect():
         cv2.imwrite(result_image, image)
 
         # ---------------------------------------------------
-        # Upload Annotated Image to Cloudinary
+        # Upload Result Image to Cloudinary
         # ---------------------------------------------------
         result_upload = upload(
             result_image,
@@ -170,8 +186,10 @@ def detect():
 
         result_url = result_upload["secure_url"]
 
+        logger.info("Result image uploaded to Cloudinary.")
+
         # ---------------------------------------------------
-        # Convert Image to Base64
+        # Convert Result Image to Base64
         # ---------------------------------------------------
         success, buffer = cv2.imencode(".jpg", image)
 
@@ -192,10 +210,13 @@ def detect():
         result["original_url"] = original_url
         result["result_url"] = result_url
 
+        logger.info("Detection completed successfully.")
+
         return jsonify(result)
 
     except Exception as e:
 
+        logger.exception("Unhandled Exception")
         traceback.print_exc()
 
         return jsonify({
@@ -206,11 +227,12 @@ def detect():
     finally:
 
         # ---------------------------------------------------
-        # Delete Temporary Local Files
+        # Cleanup Local Files
         # ---------------------------------------------------
         for file in [filepath, cropped_face, result_image]:
             try:
                 if file and os.path.exists(file):
                     os.remove(file)
-            except Exception:
-                pass
+                    logger.info("Deleted: %s", file)
+            except Exception as ex:
+                logger.warning("Unable to delete %s : %s", file, ex)

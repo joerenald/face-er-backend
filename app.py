@@ -26,17 +26,7 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 # Replace the URL below with your
 # Vercel frontend URL after deployment
 # -----------------------------
-CORS(
-    app,
-    resources={
-        r"/*": {
-            "origins": [
-                "http://localhost:5173",
-                "https://face-er-frontend-1k75.vercel.app"
-            ]
-        }
-    }
-)
+CORS(app)
 # -----------------------------
 # Register Blueprint
 # -----------------------------

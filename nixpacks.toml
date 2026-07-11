@@ -1,0 +1,8 @@
+[phases.setup]
+nixPkgs = [
+  "python311",
+  "gcc",
+  "mesa",
+  "glib",
+  "ffmpeg"
+]

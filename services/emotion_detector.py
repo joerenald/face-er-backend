@@ -1,25 +1,22 @@
 from deepface import DeepFace
-from deepface.modules import modeling
 import traceback
+import logging
 
-print("=" * 60)
-print("Loading DeepFace Emotion Model...")
-print("=" * 60)
+# ---------------------------------------
+# Logging Configuration
+# ---------------------------------------
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# Load the emotion model once when the server starts
-try:
-    emotion_model = modeling.build_model("Emotion")
-    print("✅ Emotion model loaded successfully.")
-except Exception as e:
-    print("❌ Error loading emotion model:", e)
-
-print("=" * 60)
+logger.info("=" * 60)
+logger.info("DeepFace Emotion Detector Initialized")
+logger.info("=" * 60)
 
 
 def detect_emotion(image_path):
-
-    print("\n========== DEEPFACE ANALYSIS STARTED ==========")
-    print("Image Path:", image_path)
+    """
+    Detect the dominant emotion from the cropped face image.
+    """
 
     try:
 
@@ -34,20 +31,20 @@ def detect_emotion(image_path):
         if isinstance(result, list):
             result = result[0]
 
-        emotion = result["dominant_emotion"].capitalize()
-        confidence = float(
-            result["emotion"][result["dominant_emotion"]]
-        )
+        dominant = result["dominant_emotion"]
 
         return {
             "success": True,
-            "emotion": emotion,
-            "confidence": round(confidence, 2)
+            "emotion": dominant.capitalize(),
+            "confidence": round(
+                float(result["emotion"][dominant]),
+                2
+            )
         }
 
     except Exception as e:
 
-        traceback.print_exc()
+        logger.exception("Emotion detection failed")
 
         return {
             "success": False,

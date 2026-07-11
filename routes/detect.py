@@ -1,42 +1,56 @@
 from flask import Blueprint, request, jsonify
-from werkzeug.utils import secure_filename
 from services.face_detector import detect_face
 from services.emotion_detector import detect_emotion
+
 import os
-import base64
+import uuid
 import cv2
+import base64
 import traceback
 
 detect_bp = Blueprint("detect", __name__)
 
-UPLOAD_FOLDER = "uploads"
+# -------------------------------------------------------
+# Upload Folder
+# -------------------------------------------------------
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+
+# -------------------------------------------------------
+# Emotion Label Colors
+# -------------------------------------------------------
 def get_emotion_color(emotion):
-
     colors = {
-        "Happy": (0, 255, 0),         # Green
-        "Neutral": (255, 180, 0),     # Orange
-        "Sad": (255, 180, 0),         # Cyan
-        "Angry": (0, 0, 255),         # Red
-        "Fear": (255, 0, 255),        # Purple
-        "Surprise": (0, 165, 255),    # Orange
-        "Disgust": (0, 128, 0)        # Dark Green
+        "Happy": (0, 255, 0),
+        "Neutral": (255, 180, 0),
+        "Sad": (255, 180, 0),
+        "Angry": (0, 0, 255),
+        "Fear": (255, 0, 255),
+        "Surprise": (0, 165, 255),
+        "Disgust": (0, 128, 0)
     }
 
     return colors.get(emotion, (0, 255, 0))
+
+
+# -------------------------------------------------------
+# Detect Emotion API
+# -------------------------------------------------------
 @detect_bp.route("/detect", methods=["POST"])
 def detect():
 
-    print("\n========== DETECT API CALLED ==========")
+    filepath = None
+    cropped_face = None
+    result_image = None
 
     try:
 
-        # -----------------------------
-        # Check image uploaded
-        # -----------------------------
+        # ---------------------------------------
+        # Validate Request
+        # ---------------------------------------
         if "image" not in request.files:
-            print("No image received.")
-
             return jsonify({
                 "success": False,
                 "message": "No image uploaded."
@@ -45,114 +59,113 @@ def detect():
         image = request.files["image"]
 
         if image.filename == "":
-            print("Empty filename.")
-
             return jsonify({
                 "success": False,
                 "message": "No file selected."
             }), 400
 
-        # -----------------------------
-        # Save uploaded image
-        # -----------------------------
-        os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
-        import uuid
-
+        # ---------------------------------------
+        # Save Uploaded Image
+        # ---------------------------------------
         filename = f"{uuid.uuid4().hex}.jpg"
 
         filepath = os.path.join(
-        UPLOAD_FOLDER,
-        filename
+            UPLOAD_FOLDER,
+            filename
         )
 
         image.save(filepath)
 
-        print("Image saved successfully.")
-        print("Path :", filepath)
-
-        # -----------------------------
-        # Detect Face
-        # -----------------------------
+        # ---------------------------------------
+        # Face Detection
+        # ---------------------------------------
         face_data = detect_face(filepath)
 
         if face_data is None:
-
-            print("No human face detected.")
-
             return jsonify({
-             "success": False,
-             "message": "No human face detected."
+                "success": False,
+                "message": "No human face detected."
             }), 400
 
         cropped_face = face_data["face_path"]
         result_image = face_data["result_path"]
 
-        print("Face detected.")
-        print("Cropped Face :", cropped_face)
-
-        # -----------------------------
-        # Detect Emotion
-        # -----------------------------
+        # ---------------------------------------
+        # Emotion Detection
+        # ---------------------------------------
         result = detect_emotion(cropped_face)
-        
-        if result["success"]:
 
-         import cv2
+        if not result["success"]:
+            return jsonify(result), 500
 
-         image = cv2.imread(result_image)
+        # ---------------------------------------
+        # Read Result Image
+        # ---------------------------------------
+        image = cv2.imread(result_image)
 
-         x = face_data["x"]
-         y = face_data["y"]
-         w = face_data["w"]
-         h = face_data["h"]
+        if image is None:
+            return jsonify({
+                "success": False,
+                "message": "Unable to process image."
+            }), 500
 
-         label = f'{result["emotion"]} ({result["confidence"]:.1f}%)'
+        x = face_data["x"]
+        y = face_data["y"]
+        w = face_data["w"]
+        h = face_data["h"]
 
-         label_color = get_emotion_color(result["emotion"])
+        label = f'{result["emotion"]} ({result["confidence"]:.1f}%)'
 
-         (text_width, text_height), _ = cv2.getTextSize(
-          label,
-          cv2.FONT_HERSHEY_SIMPLEX,
-          0.7,
-          2
-         )
+        label_color = get_emotion_color(result["emotion"])
 
-         padding = 12
-         cv2.rectangle(
-          image,
-          (x, y - text_height - 20),
-          (x + text_width + padding * 2, y),
-          label_color,
-          -1
-         )
-
-         cv2.putText(
-          image,
-          label,
-          (x + padding, y - 8),
-          cv2.FONT_HERSHEY_SIMPLEX,
-          0.7,
-          (255, 255, 255),
-          2
-          )
-         cv2.imwrite(result_image, image)
-
-# Convert processed image to Base64
-         _, buffer = cv2.imencode(".jpg", image)
-
-         result["image"] = (
-         "data:image/jpeg;base64,"
-         + base64.b64encode(buffer).decode("utf-8")
+        (text_width, text_height), _ = cv2.getTextSize(
+            label,
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            2
         )
 
-        print("Result :", result)
+        padding = 12
+
+        cv2.rectangle(
+            image,
+            (x, y - text_height - 20),
+            (x + text_width + padding * 2, y),
+            label_color,
+            -1
+        )
+
+        cv2.putText(
+            image,
+            label,
+            (x + padding, y - 8),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (255, 255, 255),
+            2
+        )
+
+        cv2.imwrite(result_image, image)
+
+        # ---------------------------------------
+        # Convert Image to Base64
+        # ---------------------------------------
+        success, buffer = cv2.imencode(".jpg", image)
+
+        if not success:
+            return jsonify({
+                "success": False,
+                "message": "Failed to encode image."
+            }), 500
+
+        result["image"] = (
+            "data:image/jpeg;base64,"
+            + base64.b64encode(buffer).decode("utf-8")
+        )
 
         return jsonify(result)
 
     except Exception as e:
-
-        print("\n========== BACKEND ERROR ==========")
 
         traceback.print_exc()
 
@@ -160,3 +173,15 @@ def detect():
             "success": False,
             "message": str(e)
         }), 500
+
+    finally:
+
+        # ---------------------------------------
+        # Delete Temporary Files
+        # ---------------------------------------
+        for file in [filepath, cropped_face, result_image]:
+            try:
+                if file and os.path.exists(file):
+                    os.remove(file)
+            except Exception:
+                pass

@@ -1,12 +1,23 @@
 import cv2
 import os
+import uuid
 
-UPLOAD_FOLDER = "uploads"
+# -----------------------------
+# Upload Folder
+# -----------------------------
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Load Haar Cascade once
+# -----------------------------
+# Load Haar Cascade Once
+# -----------------------------
 face_cascade = cv2.CascadeClassifier(
     cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
 )
+
+if face_cascade.empty():
+    raise RuntimeError("Failed to load Haar Cascade Classifier.")
 
 
 def detect_face(image_path):
@@ -32,13 +43,17 @@ def detect_face(image_path):
     if len(faces) == 0:
         return None
 
-    # Largest detected face
+    # -----------------------------
+    # Select Largest Face
+    # -----------------------------
     x, y, w, h = max(
         faces,
         key=lambda face: face[2] * face[3]
     )
 
-    # Add padding
+    # -----------------------------
+    # Add Padding
+    # -----------------------------
     padding = 20
 
     x1 = max(0, x - padding)
@@ -46,23 +61,37 @@ def detect_face(image_path):
     x2 = min(image.shape[1], x + w + padding)
     y2 = min(image.shape[0], y + h + padding)
 
-    # Crop face
+    # -----------------------------
+    # Crop Face
+    # -----------------------------
     face = image[y1:y2, x1:x2]
 
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+    # -----------------------------
+    # Generate Unique File Names
+    # -----------------------------
+    unique_id = uuid.uuid4().hex
 
     cropped_path = os.path.join(
         UPLOAD_FOLDER,
-        "cropped_face.jpg"
+        f"{unique_id}_cropped.jpg"
     )
 
-    # Save cropped face
+    annotated_path = os.path.join(
+        UPLOAD_FOLDER,
+        f"{unique_id}_result.jpg"
+    )
+
+    # -----------------------------
+    # Save Cropped Face
+    # -----------------------------
     cv2.imwrite(
         cropped_path,
         face
     )
 
-    # Draw bounding box
+    # -----------------------------
+    # Draw Bounding Box
+    # -----------------------------
     cv2.rectangle(
         image,
         (x1, y1),
@@ -71,12 +100,9 @@ def detect_face(image_path):
         3
     )
 
-    annotated_path = os.path.join(
-        UPLOAD_FOLDER,
-        "result.jpg"
-    )
-
-    # Save annotated image
+    # -----------------------------
+    # Save Annotated Image
+    # -----------------------------
     cv2.imwrite(
         annotated_path,
         image
